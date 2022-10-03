@@ -1,4 +1,4 @@
-import pygame, sys, ptext, pickle, random
+import pygame, sys, ptext, pickle, random, collections
 from pygame.locals import *
 from images import *
 from maps import *
@@ -33,6 +33,7 @@ player.skills = [0,0,0,0,0]
 #status effects
 player.effects = []
 player.canMove = True
+player_name = "James"
 
 #time settings
 time_frame = 0
@@ -104,7 +105,7 @@ player.equips = james_armour
 player.stats = james_stats
 player.skills = james_skills
 
-inv = [wood_helm,wood_platemail,wood_leggings,wood_boots,cooked_snakemeat,scrap_metal]
+inv = []
 
 day_hours = [[6,7,8,9,10,11,12,13,14,15,16,17,18,19],
              [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22],
@@ -143,7 +144,7 @@ hp_font = white
 talking = False
 
 talking_images = []
-text_list = ["Hello. My name is Thomas. But you can just call me Tom.",""]
+text_list = ["Hello. My name is Thomas. But you can just call me Tom.",f"Nice to meet you. I'm {player_name}."]
 talking_list = [2,1,]
 talking_image_list = [2,1]
 
@@ -223,12 +224,13 @@ grass_tiles = [1,2,3,4,5,6,7,8,9,10,11,12,13,14]
 music_name = ""
 music_mute = 0
 
-crafting_list = [[log,knife],[log,log],[log,log,log]]
-craft_items = [wood_sword,baseball_bat,wood_hammer]
+crafting_list = [[log,knife],[log,log],[log,log,log],[log,log],[log,log],[log],[log,log,log],[log,log],[log,log],[snakemeat,log]]
+craft_items = [wood_sword,baseball_bat,wood_hammer,wood_staff,slingshot,wood_helm,wood_platemail,wood_leggings,wood_boots,cooked_snakemeat]
 craft_list = []
 special_nums = [0]
 tool_items = [knife]
 items_craft = [[0,1,2,3,4,5,6,7,8,9],[10,11,12,13,14,15,16,17,18,19]]
+crafting_lengths = [[2,2,3,2,2,1,3,2,2,2]]
 
 def change_music(music):
     global music_name
@@ -333,16 +335,16 @@ def craft(inv,num,craft_list):
             x += 1
         except IndexError:
             pass
-    if craft_list == crafting_list[num]:
+    if sorted(craft_list) == sorted(crafting_list[num]):
         for thing in saved_nums:
-            if num not in special_nums:
-                if thing not in tool_items:
+            for item in inv:
+                if inv[saved_nums[z]] not in tool_items:
                     inv[saved_nums[z]] = None
             z += 1
         add_item(inv,craft_items[num])
                 
             
-item_list = [log]
+item_list = [log,snakemeat]
 
 while True:
     citem = pygame.Surface((15,15),pygame.SRCALPHA)
@@ -464,6 +466,10 @@ while True:
             x += 1
         y += 1
         
+    for item in drop_list:
+        item[2] = pygame.Rect(item[1][0]-player.x,item[1][1]-player.y,15,15)
+        screen.blit(image_list[item[0][0][0]],(item[2]))
+        
     for enemy in enemy_list:
         screen.blit(enemy.img, (enemy.x-player.x,enemy.y-player.y))
         enemy.animate(player)
@@ -497,7 +503,7 @@ while True:
                     debug()
                     
             if event.key == K_q:
-                add_item(inv,item_list[0])
+                add_item(inv,item_list[random.randint(0,1)])
                 
             if event.key == K_u:
                 craft(inv,1,craft_list)
@@ -509,7 +515,12 @@ while True:
                 hp = max_hp
                 hunger = max_hunger
                 thirst = max_thirst
-            
+                
+            if event.key == K_e:
+                for item in drop_list:
+                    if item[2].colliderect(playerRect):
+                        add_item(inv,item[0])
+                        drop_list.remove(item)
             if event.key == K_LSHIFT:
                 if player.canMove == True:
                     if rolling == False and rollcounter == 0:
@@ -643,7 +654,7 @@ while True:
                 if crit_rng <= held_item[1][3]:
                     damage_rng = damage_rng * 3
                 enemy.hp -= damage_rng
-                enemy.check_health(drop_list,enemy_list)
+                enemy.check_health(drop_list,enemy_list,player)
                 using = False
                 print(f"{damage_rng}")
         use_time -= 1
@@ -731,6 +742,13 @@ while True:
     mouseRect = pygame.mouse.get_pos()
     update_menu(screen,image_list,menu,inv,player,selected_item,menu_cursor)
     if menu == 1:
+        itemtext1 = ""
+        itemtext2 = ""
+        itemtext3 = ""
+        itemtext4 = ""
+        itemtext5 = ""
+        itemtext6 = ""
+        itemtext7 = ""
         if cursor_item != None:
             citem.blit(image_list[cursor_item[0][0]],(0,0))
         for rect in inventory_Rects:
@@ -862,7 +880,7 @@ while True:
             y = 2
             for item in craft_items:
                 screen.blit(image_list[item[0][0]],(x*15,y*15))
-                crafting_Rects.append([pygame.Rect(x*60,y*60,60,60),items_craft[y-2][x]])
+                crafting_Rects.append([pygame.Rect(x*60,y*60,60,60),items_craft[y-2][x],[[y-2],[x]],x])
                 x += 1
             if x > 9:
                 x = 0
@@ -871,16 +889,16 @@ while True:
                 z = 0
                 if rect[0].collidepoint(mouseRect):
                     crafting_desc = f"Requires: "
-                    print(f"{crafting_list[rect[1]]}")
-                    for item in crafting_list[0]:
-                        if z != len(crafting_list[rect[2]]):
-                            crafting_desc += f"{crafting_list[y-2][z][0][2]}, "
-                        if z == len(crafting_list[y-2][z]):
-                            crafting_desc += f"{crafting_list[y-2][z][0][2]}."
+                    for item in crafting_list[rect[1]]:
+                        if z != crafting_lengths[rect[2][0][0]][rect[2][1][0]]-1:
+                            crafting_desc += f"{crafting_list[rect[1]][z][0][2]}, "
+                        else:
+                            crafting_desc += f"{crafting_list[rect[1]][z][0][2]}."
                         z += 1
-                    itemtext1 = crafting_desc
-                    itemtext2 = ""
-                    itemtext3 = ""
+                    item_font = font_c_list[craft_items[rect[3]][0][4]]
+                    itemtext1 = f"{craft_items[rect[3]][0][2]}"
+                    itemtext2 = f"{craft_items[rect[3]][0][3]}"
+                    itemtext3 = crafting_desc
                     itemtext4 = ""
                     itemtext5 = ""
                     itemtext6 = ""

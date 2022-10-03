@@ -52,13 +52,13 @@ class enemy():
                 if self.anim == 20:
                     self.anim = 0
                     
-    def check_health(self,drop_list,enemylist):
+    def check_health(self,drop_list,enemylist,player):
         if self.hp < 0:
             x = 0
             for drop in self.drops:
                 dropchance = random.randint(self.dropchances[x][0],self.dropchances[x][1])
                 if dropchance == 1:
-                    drop_list.append([self.drops[x],(self.x,self.y)])
+                    drop_list.append([self.drops[x],(self.x,self.y),pygame.Rect(self.x-player.x,self.y-player.y,15,15)])
                 x += 1
             enemylist.remove(self)
 
